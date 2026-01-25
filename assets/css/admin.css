@@ -1,0 +1,94 @@
+/**
+ * HWS Git Push - Admin Styles v3.1.0
+ */
+
+.hws-git-push-admin { max-width: 1200px; }
+.hws-git-push-admin h1 small { font-size: 12px; color: #666; font-weight: normal; }
+
+/* Status Bar */
+.hws-status-bar { background: #f0f6fc; border: 1px solid #c3c4c7; padding: 10px 15px; margin: 15px 0; border-radius: 4px; display: flex; align-items: center; gap: 15px; }
+
+/* Sections */
+.hws-section { background: #fff; border: 1px solid #ccd0d4; padding: 20px; margin-bottom: 20px; border-radius: 4px; }
+.hws-section h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+
+/* Primary Settings Section */
+.hws-section-primary { border-color: #2271b1; border-width: 2px; background: linear-gradient(to bottom, #f0f6fc, #fff); }
+.hws-section-primary h2 { color: #2271b1; border-bottom-color: #2271b1; }
+
+/* Dashboard Section */
+.hws-section-dashboard { border-color: #8c5ebc; border-width: 2px; background: linear-gradient(to bottom, #f9f5fc, #fff); }
+.hws-section-dashboard h2 { color: #8c5ebc; border-bottom-color: #8c5ebc; }
+.hws-section-dashboard .spinner { margin-top: 0; }
+
+/* Log Section */
+.hws-section-log { border-color: #2e7d32; border-width: 2px; }
+.hws-section-log h2 { color: #2e7d32; border-bottom-color: #2e7d32; }
+
+/* Dashboard Table */
+#hws-dashboard-table { margin-top: 15px; }
+#hws-dashboard-table th { background: #f9f9f9; font-weight: 600; }
+#hws-dashboard-table td { vertical-align: middle; }
+#hws-dashboard-table code { background: #f0f0f1; padding: 2px 6px; border-radius: 3px; }
+
+/* Row highlighting */
+.hws-row-needs-push { background-color: #fcf0f1 !important; }
+.hws-row-behind { background-color: #fff8e5 !important; }
+
+/* Info Boxes */
+.hws-info-box { padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #f0f6fc; border: 1px solid #c3c4c7; }
+.hws-info-success { background: #edfaef; border-color: #00a32a; }
+.hws-info-warning { background: #fff8e5; border-color: #dba617; }
+.hws-info-danger { background: #fcf0f1; border-color: #d63638; }
+
+/* Command Sections */
+.hws-cmd-section { padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+.hws-cmd-section h3 { margin-top: 0; }
+.hws-cmd-section p { margin-bottom: 10px; }
+
+.hws-cmd-warning { background: #fff3cd; border: 1px solid #ffc107; }
+.hws-cmd-warning h3 { color: #856404; }
+.hws-cmd-danger { background: #f8d7da; border: 1px solid #f5c6cb; }
+.hws-cmd-danger h3 { color: #721c24; }
+.hws-cmd-info { background: #d1ecf1; border: 1px solid #bee5eb; }
+.hws-cmd-info h3 { color: #0c5460; }
+.hws-cmd-success { background: #d4edda; border: 1px solid #c3e6cb; }
+.hws-cmd-success h3 { color: #155724; }
+.hws-cmd-muted { background: #e2e3e5; border: 1px solid #d6d8db; }
+.hws-cmd-muted h3 { color: #383d41; }
+.hws-cmd-primary { background: #cce5ff; border: 1px solid #b8daff; }
+.hws-cmd-primary h3 { color: #004085; }
+
+/* Command Blocks */
+.hws-cmd { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 4px; overflow-x: auto; cursor: pointer; margin-bottom: 8px; font-family: Consolas, Monaco, monospace; font-size: 13px; transition: background 0.2s; }
+.hws-cmd:hover { background: #2d2d2d; }
+.hws-cmd:last-of-type { margin-bottom: 0; }
+
+.hws-cmd-footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px; }
+.hws-cmd-footer small { color: #666; }
+
+/* Log Output - Improved */
+.hws-log-output { 
+    background: #1e1e1e; 
+    color: #d4d4d4; 
+    font-family: Consolas, Monaco, monospace; 
+    font-size: 12px; 
+    line-height: 1.6; 
+    padding: 15px; 
+    margin: 0;
+    border-radius: 4px; 
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Tables */
+.hws-git-push-admin .widefat { margin-top: 10px; }
+.hws-git-push-admin .widefat td, .hws-git-push-admin .widefat th { padding: 10px; }
+
+/* Description text */
+.hws-git-push-admin .description { color: #646970; font-style: italic; }
+.hws-git-push-admin .description code { font-style: normal; background: #f0f0f1; padding: 2px 6px; border-radius: 3px; }
+
