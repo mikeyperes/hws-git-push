@@ -133,30 +133,104 @@ class Ajax_Handlers {
         
         if (empty($plugin_slug)) Helpers::ajax_error('No plugin specified');
         
+        // Default commit message if empty
+        if (empty($message)) {
+            $message = 'Update ' . date('Y-m-d H:i');
+        }
+        
         $plugin_path = Helpers::get_plugin_path($plugin_slug);
         if (!is_dir($plugin_path)) Helpers::ajax_error('Plugin not found');
         
-        // Get remote info before push
-        $status = Git_Operations::get_status($plugin_path);
+        $log = array();
         $remote = '';
-        if (!empty($status['remote_url'])) {
+        
+        // AUTO-RESTORE: If .git is missing but plugin is registered, restore it automatically
+        if (!Helpers::has_git($plugin_path)) {
+            $github_repo = Admin_UI::get_plugin_github_repo($plugin_slug);
+            
+            if (!$github_repo) {
+                Helpers::ajax_error('Git not initialized. Please use Initialize first to set up the repository.');
+            }
+            
+            $log[] = "⚠️ Git folder missing - auto-restoring from database...";
+            $log[] = "📍 Registered repo: " . $github_repo;
+            
+            // Try backup first
+            $backup = Backup::get_latest($plugin_slug);
+            $restored = false;
+            
+            if ($backup) {
+                $log[] = "📦 Found backup: " . basename($backup['file']);
+                $restore_result = Backup::restore($backup['file'], $plugin_path);
+                if ($restore_result['success']) {
+                    $log[] = "✓ Git restored from backup";
+                    $restored = true;
+                } else {
+                    $log[] = "⚠️ Backup restore failed: " . ($restore_result['message'] ?? 'Unknown error');
+                }
+            }
+            
+            // If no backup or restore failed, reinitialize from scratch
+            if (!$restored) {
+                $log[] = "🔄 Reinitializing git repository...";
+                $token = GitHub_API::get_token();
+                $parsed = GitHub_API::parse_remote_url('https://github.com/' . $github_repo);
+                
+                if (!$parsed) {
+                    $log[] = "❌ Invalid repository format";
+                    Helpers::ajax_error('Invalid saved repository format', array('log' => implode("\n", $log)));
+                }
+                
+                $remote_url = GitHub_API::build_remote_url($parsed['owner'], $parsed['repo'], $token);
+                
+                // Initialize git, configure, add remote
+                Helpers::run_command('git init', $plugin_path);
+                Helpers::run_command('git checkout -b main', $plugin_path);
+                Helpers::run_command('git config user.email "wordpress@local"', $plugin_path);
+                Helpers::run_command('git config user.name "WordPress"', $plugin_path);
+                Helpers::run_command('git remote add origin ' . escapeshellarg($remote_url), $plugin_path);
+                
+                // Try to fetch and reset to remote
+                $fetch_result = Helpers::run_command('git fetch origin main', $plugin_path);
+                if ($fetch_result['success']) {
+                    Helpers::run_command('git reset --soft origin/main', $plugin_path);
+                    $log[] = "✓ Git reinitialized and synced with remote";
+                } else {
+                    $log[] = "✓ Git reinitialized (new repo or fetch failed)";
+                }
+                
+                // Create backup for future
+                Backup::create($plugin_path);
+            }
+            
+            $remote = $github_repo;
+            $log[] = "";
+        }
+        
+        // Get remote info
+        $status = Git_Operations::get_status($plugin_path);
+        if (empty($remote) && !empty($status['remote_url'])) {
             $parsed = GitHub_API::parse_remote_url($status['remote_url']);
             if ($parsed) {
                 $remote = $parsed['owner'] . '/' . $parsed['repo'];
             }
         }
         
+        // Create backup before push
         Backup::create($plugin_path);
+        
+        // Now do the actual push
         $result = Git_Operations::quick_push($plugin_path, $message, $force);
+        $log = array_merge($log, $result['log']);
         
         if ($result['success']) {
             Helpers::ajax_success('Push complete', array(
-                'log'    => implode("\n", $result['log']),
+                'log'    => implode("\n", $log),
                 'remote' => $remote
             ));
         } else {
             Helpers::ajax_error('Push failed', array(
-                'log'    => implode("\n", $result['log']),
+                'log'    => implode("\n", $log),
                 'remote' => $remote
             ));
         }
@@ -585,15 +659,8 @@ class Ajax_Handlers {
     public static function handle_load_plugin_versions() {
         Helpers::verify_ajax_request('update_plugins');
         
-        $debug = array();
-        $debug['step'] = 'start';
-        $debug['repo'] = Config::$github_repo;
-        $debug['token_exists'] = !empty(GitHub_API::get_token());
-        $debug['token_preview'] = GitHub_API::get_token() ? substr(GitHub_API::get_token(), 0, 10) . '...' : 'NONE';
-        
-        // Make direct API call here for debugging
-        $url = 'https://api.github.com/repos/' . Config::$github_repo . '/commits?per_page=10';
-        $debug['api_url'] = $url;
+        // Fetch recent commits from GitHub API - 30 commits like HWS Base Tools
+        $url = 'https://api.github.com/repos/' . Config::$github_repo . '/commits?per_page=30';
         
         $args = array(
             'timeout' => 30,
@@ -611,58 +678,61 @@ class Ajax_Handlers {
         $response = wp_remote_get($url, $args);
         
         if (is_wp_error($response)) {
-            $debug['step'] = 'wp_error';
-            $debug['error'] = $response->get_error_message();
-            Helpers::ajax_error('API Error: ' . $response->get_error_message(), array('debug' => $debug));
+            Helpers::ajax_error('API Error: ' . $response->get_error_message());
         }
         
         $code = wp_remote_retrieve_response_code($response);
-        $body_raw = wp_remote_retrieve_body($response);
-        $body = json_decode($body_raw, true);
-        
-        $debug['http_code'] = $code;
-        $debug['body_length'] = strlen($body_raw);
-        $debug['body_preview'] = substr($body_raw, 0, 500);
-        $debug['is_array'] = is_array($body);
-        $debug['commit_count'] = is_array($body) ? count($body) : 0;
+        $body = json_decode(wp_remote_retrieve_body($response), true);
         
         if ($code !== 200) {
-            $debug['step'] = 'http_error';
             $msg = isset($body['message']) ? $body['message'] : 'HTTP ' . $code;
-            Helpers::ajax_error('GitHub Error: ' . $msg, array('debug' => $debug));
+            Helpers::ajax_error('GitHub Error: ' . $msg);
         }
         
         if (!is_array($body) || empty($body)) {
-            $debug['step'] = 'empty_body';
-            Helpers::ajax_error('No commits found', array('debug' => $debug));
+            Helpers::ajax_error('No commits found');
         }
         
-        // Build versions list - SIMPLE, just show commits
+        // Build versions list - extract version from commit message if present
         $versions = array();
-        foreach ($body as $i => $commit) {
+        foreach ($body as $commit) {
             $sha = $commit['sha'];
             $short_sha = substr($sha, 0, 7);
             $message = isset($commit['commit']['message']) ? $commit['commit']['message'] : 'No message';
-            $message = strtok($message, "\n");
-            $message = substr($message, 0, 50);
-            $date = isset($commit['commit']['committer']['date']) ? date('M j, Y', strtotime($commit['commit']['committer']['date'])) : '';
+            $date = isset($commit['commit']['committer']['date']) 
+                ? date('M j, Y', strtotime($commit['commit']['committer']['date'])) 
+                : '';
+            
+            // Try to extract version from commit message (e.g., "v3.6:" or "Version 3.6")
+            $version_label = '';
+            if (preg_match('/v?(\d+\.\d+(?:\.\d+)?)/i', $message, $matches)) {
+                $version_label = 'v' . $matches[1];
+            }
+            
+            // Get first line of commit message
+            $message_first_line = strtok($message, "\n");
+            if (strlen($message_first_line) > 50) {
+                $message_first_line = substr($message_first_line, 0, 47) . '...';
+            }
+            
+            // Build display name - match HWS Base Tools format
+            $display_name = $version_label 
+                ? $version_label . ' - ' . $message_first_line . ' (' . $date . ')'
+                : $short_sha . ' - ' . $message_first_line . ' (' . $date . ')';
             
             $versions[] = array(
-                'name' => $message . ' (' . $date . ' - ' . $short_sha . ')',
-                'sha' => $sha,
+                'name'      => $display_name,
+                'sha'       => $sha,
                 'short_sha' => $short_sha,
-                'version' => $short_sha,
-                'date' => $date,
-                'message' => $message
+                'version'   => $version_label ?: $short_sha,
+                'date'      => $date,
+                'message'   => $message_first_line
             );
         }
         
-        $debug['step'] = 'success';
-        $debug['versions_built'] = count($versions);
-        
         Helpers::ajax_success('Loaded ' . count($versions) . ' commits', array(
             'versions' => $versions,
-            'debug' => $debug
+            'count'    => count($versions)
         ));
     }
     
@@ -800,47 +870,58 @@ class Ajax_Handlers {
             $github_repo = Admin_UI::get_plugin_github_repo($slug);
             $needs_restore = $is_registered && !$has_git;
             
-            // If needs restore, return minimal data
-            if ($needs_restore) {
-                $results[] = array(
-                    'slug'            => $slug,
-                    'name'            => $plugin_data['Name'],
-                    'local_version'   => $local_version,
-                    'github_version'  => 'Unknown',
-                    'status'          => 'needs_restore',
-                    'has_changes'     => false,
-                    'needs_restore'   => true,
-                    'remote'          => $github_repo ?: 'unknown/unknown',
-                    'branch'          => 'main'
-                );
-                continue;
-            }
-            
-            // Normal flow for plugins with .git
-            $status = Git_Operations::get_status($path);
-            
-            if (empty($status['remote_url'])) {
-                continue;
-            }
-            
-            $parsed = GitHub_API::parse_remote_url($status['remote_url']);
-            
-            if (!$parsed) {
-                continue;
-            }
-            
+            // ALWAYS try to get GitHub version - even when needs_restore
+            // We have the repo info in the database, so we can still check GitHub
             $github_version = null;
             $version_status = 'unknown';
+            $has_changes = false;
+            $branch = 'main';
+            $remote = $github_repo ?: 'unknown/unknown';
             
-            // Try to get GitHub version
-            $github_version = self::get_github_plugin_version(
-                $parsed['owner'], 
-                $parsed['repo'], 
-                $slug,
-                $status['branch'] ?? null
-            );
+            // Get GitHub version using stored repo OR from git remote
+            if ($github_repo) {
+                // Parse the stored repo
+                $parsed = GitHub_API::parse_remote_url('https://github.com/' . $github_repo);
+                if ($parsed) {
+                    // If has git, also get branch and changes info
+                    if ($has_git) {
+                        $status = Git_Operations::get_status($path);
+                        $branch = $status['branch'] ?? 'main';
+                        $has_changes = $status['has_changes'] ?? false;
+                    }
+                    
+                    // Try to get GitHub version via API
+                    $github_version = self::get_github_plugin_version(
+                        $parsed['owner'], 
+                        $parsed['repo'], 
+                        $slug,
+                        $branch
+                    );
+                }
+            } elseif ($has_git) {
+                // Fallback: get from git remote if available
+                $status = Git_Operations::get_status($path);
+                $branch = $status['branch'] ?? 'main';
+                $has_changes = $status['has_changes'] ?? false;
+                
+                if (!empty($status['remote_url'])) {
+                    $parsed = GitHub_API::parse_remote_url($status['remote_url']);
+                    if ($parsed) {
+                        $remote = $parsed['owner'] . '/' . $parsed['repo'];
+                        $github_version = self::get_github_plugin_version(
+                            $parsed['owner'], 
+                            $parsed['repo'], 
+                            $slug,
+                            $branch
+                        );
+                    }
+                }
+            }
             
-            if ($github_version) {
+            // Determine status
+            if ($needs_restore) {
+                $version_status = 'needs_restore';
+            } elseif ($github_version) {
                 $compare = version_compare($local_version, $github_version);
                 if ($compare > 0) {
                     $version_status = 'needs_push';
@@ -855,12 +936,12 @@ class Ajax_Handlers {
                 'slug'            => $slug,
                 'name'            => $plugin_data['Name'],
                 'local_version'   => $local_version,
-                'github_version'  => $github_version ?: 'Unknown',
+                'github_version'  => $github_version ?: '—',
                 'status'          => $version_status,
-                'has_changes'     => $status['has_changes'] ?? false,
-                'needs_restore'   => false,
-                'remote'          => $parsed['owner'] . '/' . $parsed['repo'],
-                'branch'          => $status['branch'] ?? 'main'
+                'has_changes'     => $has_changes,
+                'needs_restore'   => $needs_restore,
+                'remote'          => $remote,
+                'branch'          => $branch
             );
         }
         
