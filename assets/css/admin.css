@@ -34,6 +34,22 @@
 /* Row highlighting */
 .hws-row-needs-push { background-color: #fcf0f1 !important; }
 .hws-row-behind { background-color: #fff8e5 !important; }
+.hws-row-needs-restore { background-color: #fef2f2 !important; border-left: 4px solid #d63638 !important; }
+
+/* Dashboard commit message input */
+.hws-dash-commit-msg { 
+    border: 1px solid #8c8f94; 
+    border-radius: 3px; 
+    font-size: 12px !important; 
+    padding: 4px 8px !important;
+    width: 150px !important;
+}
+.hws-dash-commit-msg:focus { 
+    border-color: #2271b1; 
+    box-shadow: 0 0 0 1px #2271b1; 
+    outline: none; 
+}
+.hws-dash-commit-msg::placeholder { color: #a7aaad; }
 
 /* Info Boxes */
 .hws-info-box { padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #f0f6fc; border: 1px solid #c3c4c7; }

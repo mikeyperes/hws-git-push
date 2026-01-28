@@ -165,6 +165,15 @@ class Ajax_Handlers {
                 if ($restore_result['success']) {
                     $log[] = "✓ Git restored from backup";
                     $restored = true;
+                    
+                    // IMPORTANT: Update remote URL with current token
+                    $token = GitHub_API::get_token();
+                    $parsed = GitHub_API::parse_remote_url('https://github.com/' . $github_repo);
+                    if ($parsed && $token) {
+                        $remote_url = GitHub_API::build_remote_url($parsed['owner'], $parsed['repo'], $token);
+                        Helpers::run_command('git remote set-url origin ' . escapeshellarg($remote_url), $plugin_path);
+                        $log[] = "✓ Remote URL updated with current token";
+                    }
                 } else {
                     $log[] = "⚠️ Backup restore failed: " . ($restore_result['message'] ?? 'Unknown error');
                 }
@@ -401,6 +410,13 @@ class Ajax_Handlers {
         if ($backup) {
             $result = Backup::restore($backup['file'], $plugin_path);
             if ($result['success']) {
+                // IMPORTANT: Update remote URL with current token
+                $token = GitHub_API::get_token();
+                $parsed = GitHub_API::parse_remote_url('https://github.com/' . $github_repo);
+                if ($parsed && $token) {
+                    $remote_url = GitHub_API::build_remote_url($parsed['owner'], $parsed['repo'], $token);
+                    Helpers::run_command('git remote set-url origin ' . escapeshellarg($remote_url), $plugin_path);
+                }
                 Helpers::ajax_success('Git restored from backup', array('method' => 'backup'));
             }
         }

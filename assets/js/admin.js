@@ -228,9 +228,12 @@
                                 unknown++;
                         }
                         
-                        actionsHtml = '<button type="button" class="button button-small hws-dash-push" data-plugin="' + escapeHtml(plugin.slug) + '" data-version="' + escapeHtml(plugin.local_version) + '" data-name="' + escapeHtml(plugin.name) + '" data-remote="' + escapeHtml(plugin.remote) + '">Push</button> ' +
-                                      '<button type="button" class="button button-small hws-dash-check" data-plugin="' + escapeHtml(plugin.slug) + '">🔄</button> ' +
-                                      '<button type="button" class="button button-small hws-dash-remove" data-plugin="' + escapeHtml(plugin.slug) + '" title="Remove from dashboard">✕</button>';
+                        actionsHtml = '<div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">' +
+                                      '<input type="text" class="hws-dash-commit-msg" data-plugin="' + escapeHtml(plugin.slug) + '" placeholder="Commit message" style="width: 140px; font-size: 12px; padding: 3px 6px;">' +
+                                      '<button type="button" class="button button-primary button-small hws-dash-push" data-plugin="' + escapeHtml(plugin.slug) + '" data-version="' + escapeHtml(plugin.local_version) + '" data-name="' + escapeHtml(plugin.name) + '" data-remote="' + escapeHtml(plugin.remote) + '">Push</button> ' +
+                                      '<button type="button" class="button button-small hws-dash-check" data-plugin="' + escapeHtml(plugin.slug) + '" title="Refresh">🔄</button> ' +
+                                      '<button type="button" class="button button-small hws-dash-remove" data-plugin="' + escapeHtml(plugin.slug) + '" title="Remove from dashboard">✕</button>' +
+                                      '</div>';
                     }
                     
                     var changesHtml = plugin.needs_restore 
@@ -303,12 +306,25 @@
             var name = $btn.data('name');
             var remote = $btn.data('remote') || '';
             
+            // Get commit message from input field
+            var $msgInput = $('.hws-dash-commit-msg[data-plugin="' + plugin + '"]');
+            var commitMsg = $msgInput.val().trim();
+            
+            // Require commit message
+            if (!commitMsg) {
+                $msgInput.css('border-color', 'red').focus();
+                appendLog('⚠️ Please enter a commit message', name, version);
+                return;
+            }
+            $msgInput.css('border-color', '');
+            
             $btn.prop('disabled', true).text('...');
-            appendLog('Pushing from dashboard...', name, version);
+            appendLog('Pushing: ' + commitMsg, name, version);
             
             ajax('hws_push_plugin', { 
                 plugin: plugin, 
-                message: 'Update v' + version 
+                message: commitMsg,
+                force: 'true'
             }, { timeout: 120000 }).done(function(r) {
                 if (r.success) {
                     var logContent = r.data.log || 'Push complete';
@@ -323,14 +339,18 @@
                         logContent += '════════════════════════════════════════════';
                     }
                     appendLog(logContent, name, version);
+                    $msgInput.val(''); // Clear input on success
                     // Refresh just this row
                     refreshSinglePlugin(plugin, $btn.closest('tr'));
                 } else {
-                    appendLog('Push failed: ' + (r.data.message || 'Unknown error'), name, version);
+                    // Show actual error with log
+                    var errorMsg = r.data.message || r.data || 'Unknown error';
+                    var errorLog = r.data.log || '';
+                    appendLog('❌ Push failed: ' + errorMsg + (errorLog ? '\n' + errorLog : ''), name, version);
                     $btn.prop('disabled', false).text('Push');
                 }
-            }).fail(function() {
-                appendLog('Push request failed', name, version);
+            }).fail(function(xhr, status, error) {
+                appendLog('❌ Push request failed: ' + error, name, version);
                 $btn.prop('disabled', false).text('Push');
             });
         });
