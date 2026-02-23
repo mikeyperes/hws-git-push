@@ -156,7 +156,7 @@ $plugin_info = Admin_UI::get_plugin_info();
             <tr>
                 <th>Upload Zip</th>
                 <td>
-                    <input type="file" id="hws-upload-plugin-zip" accept=".zip">
+                    <input type="file" id="hws-upload-plugin-zip" accept=".zip,application/zip,application/x-zip-compressed">
                     <button type="button" id="hws-upload-install" class="button">📤 Upload & Install</button>
                     <span id="hws-upload-spinner" class="spinner"></span>
                     <span id="hws-upload-status" style="margin-left: 10px;"></span>
@@ -257,7 +257,7 @@ $plugin_info = Admin_UI::get_plugin_info();
             <tr>
                 <th>Upload Backup</th>
                 <td>
-                    <input type="file" id="hws-upload-backup-file" accept=".tar.gz,.gz">
+                    <input type="file" id="hws-upload-backup-file" accept=".tar.gz,.gz,.tar,application/gzip,application/x-gzip,application/x-tar">
                     <button type="button" id="hws-upload-backup" class="button" style="margin-left: 10px;">📤 Upload & Restore</button>
                     <span id="hws-upload-backup-spinner" class="spinner"></span>
                     <p class="description">Upload a backup file (.tar.gz) from another WordPress install.</p>

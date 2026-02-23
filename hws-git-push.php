@@ -3,7 +3,7 @@
  * Plugin Name: HWS Git Push
  * Plugin URI: https://developer.suspended.dev/hws-git-push
  * Description: Push WordPress plugins to GitHub repositories with automated backups and version management.
- * Version: 3.7.0
+ * Version: 3.7.2
  * Author: Michael Peres
  * Author URI: https://developer.suspended.dev
  * License: GPL v2 or later
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
 | Plugin Constants
 |--------------------------------------------------------------------------
 */
-define('HWS_GIT_PUSH_VERSION', '3.7.0');
+define('HWS_GIT_PUSH_VERSION', '3.7.2');
 define('HWS_GIT_PUSH_FILE', __FILE__);
 define('HWS_GIT_PUSH_DIR', plugin_dir_path(__FILE__));
 define('HWS_GIT_PUSH_URL', plugin_dir_url(__FILE__));
