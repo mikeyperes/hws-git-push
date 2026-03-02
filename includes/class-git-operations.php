@@ -59,12 +59,18 @@ class Git_Operations {
         $result = Helpers::run_command('git rev-parse --abbrev-ref HEAD', $repo_path);
         if ($result['success']) $status['branch'] = trim($result['output']);
         
-        // Get remote
+        // Get remote (strip token from URL for security)
         $result = Helpers::run_command('git remote get-url origin', $repo_path);
         if ($result['success']) {
-            $status['remote_url'] = trim($result['output']);
-            $parsed = GitHub_API::parse_remote_url($status['remote_url']);
-            if ($parsed) $status['remote'] = $parsed['owner'] . '/' . $parsed['repo'];
+            $raw_url = trim($result['output']);
+            $parsed = GitHub_API::parse_remote_url($raw_url);
+            if ($parsed) {
+                $status['remote'] = $parsed['owner'] . '/' . $parsed['repo'];
+                // Store sanitized URL without token
+                $status['remote_url'] = 'https://github.com/' . $parsed['owner'] . '/' . $parsed['repo'] . '.git';
+            } else {
+                $status['remote_url'] = $raw_url;
+            }
         }
         
         // Check for changes

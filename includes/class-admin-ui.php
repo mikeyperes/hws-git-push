@@ -47,18 +47,21 @@ class Admin_UI {
             return;
         }
         
+        $css_ver = HWS_GIT_PUSH_VERSION . '.' . filemtime(HWS_GIT_PUSH_DIR . 'assets/css/admin.css');
+        $js_ver  = HWS_GIT_PUSH_VERSION . '.' . filemtime(HWS_GIT_PUSH_DIR . 'assets/js/admin.js');
+
         wp_enqueue_style(
             'hws-git-push-admin',
             HWS_GIT_PUSH_URL . 'assets/css/admin.css',
             array(),
-            HWS_GIT_PUSH_VERSION
+            $css_ver
         );
-        
+
         wp_enqueue_script(
             'hws-git-push-admin',
             HWS_GIT_PUSH_URL . 'assets/js/admin.js',
             array('jquery'),
-            HWS_GIT_PUSH_VERSION,
+            $js_ver,
             true
         );
         
@@ -199,7 +202,7 @@ class Admin_UI {
         $token = GitHub_API::get_token();
         return array(
             'configured' => !empty($token),
-            'masked'     => !empty($token) ? substr($token, 0, 8) . '...' : ''
+            'masked'     => GitHub_API::get_masked_token()
         );
     }
     

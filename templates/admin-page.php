@@ -90,6 +90,7 @@ $plugin_info = Admin_UI::get_plugin_info();
                            value="<?php echo $token_status['configured'] ? '••••••••••••' : ''; ?>">
                     <button type="button" id="hws-save-token" class="button button-primary">Save Token</button>
                     <button type="button" id="hws-toggle-token" class="button">👁️</button>
+                    <button type="button" id="hws-test-token" class="button">🔑 Test Credentials</button>
                     <span id="hws-token-status" style="margin-left: 10px;">
                         <?php if ($token_status['configured']): ?>
                             <span style="color: green;">✓ Token configured (<?php echo esc_html($token_status['masked']); ?>)</span>
@@ -98,9 +99,10 @@ $plugin_info = Admin_UI::get_plugin_info();
                         <?php endif; ?>
                     </span>
                     <p class="description" style="margin-top: 8px;">
-                        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Generate a token on GitHub ↗</a> → 
+                        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Generate a token on GitHub ↗</a> →
                         Select scopes: <code>repo</code> (full access to private repositories)
                     </p>
+                    <div id="hws-test-token-result" style="display: none; margin-top: 10px; padding: 12px 16px; border-radius: 4px; font-size: 14px; font-weight: bold;"></div>
                 </td>
             </tr>
         </table>

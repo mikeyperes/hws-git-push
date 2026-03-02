@@ -18,26 +18,98 @@ class GitHub_API {
     
     /*
     |--------------------------------------------------------------------------
+    | Encryption
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Get encryption key derived from WordPress AUTH_KEY (stored in wp-config.php, NOT in database)
+     * This means a database-only compromise cannot decrypt the token.
+     */
+    private static function get_encryption_key() {
+        if (defined('AUTH_KEY') && AUTH_KEY !== 'put your unique phrase here') {
+            return hash('sha256', AUTH_KEY . 'hws_git_push_token_key', true);
+        }
+        // Fallback if AUTH_KEY not properly configured
+        return hash('sha256', ABSPATH . DB_NAME . 'hws_git_push_token_key', true);
+    }
+
+    /**
+     * Encrypt a token for storage
+     */
+    private static function encrypt_token($plaintext) {
+        if (empty($plaintext)) return '';
+
+        $key = self::get_encryption_key();
+        $iv = openssl_random_pseudo_bytes(16);
+        $encrypted = openssl_encrypt($plaintext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+        if ($encrypted === false) return $plaintext; // Fallback to plaintext if encryption fails
+
+        return 'enc:' . base64_encode($iv . $encrypted);
+    }
+
+    /**
+     * Decrypt a stored token
+     */
+    private static function decrypt_token($stored) {
+        if (empty($stored)) return '';
+
+        // Legacy plaintext token (no enc: prefix)
+        if (strpos($stored, 'enc:') !== 0) {
+            return $stored;
+        }
+
+        $key = self::get_encryption_key();
+        $data = base64_decode(substr($stored, 4));
+
+        if ($data === false || strlen($data) < 17) return '';
+
+        $iv = substr($data, 0, 16);
+        $encrypted = substr($data, 16);
+
+        $decrypted = openssl_decrypt($encrypted, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+        return $decrypted !== false ? $decrypted : '';
+    }
+
+    /**
+     * Get a masked version of the token (safe for display)
+     */
+    public static function get_masked_token() {
+        $token = self::get_token();
+        if (empty($token)) return '';
+        return substr($token, 0, 8) . '••••••••';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication
     |--------------------------------------------------------------------------
     */
-    
+
     /**
-     * Get the stored GitHub API token
+     * Get the stored GitHub API token (decrypted)
      */
     public static function get_token() {
         if (self::$token === null) {
-            self::$token = get_option(Config::$option_github_token, '');
+            $stored = get_option(Config::$option_github_token, '');
+            self::$token = self::decrypt_token($stored);
+
+            // Auto-migrate legacy plaintext tokens to encrypted storage
+            if (!empty($stored) && strpos($stored, 'enc:') !== 0) {
+                update_option(Config::$option_github_token, self::encrypt_token(self::$token));
+            }
         }
         return self::$token;
     }
-    
+
     /**
-     * Save the GitHub API token
+     * Save the GitHub API token (encrypted at rest)
      */
     public static function save_token($token) {
         self::$token = $token;
-        return update_option(Config::$option_github_token, $token);
+        $encrypted = self::encrypt_token($token);
+        return update_option(Config::$option_github_token, $encrypted);
     }
     
     /**

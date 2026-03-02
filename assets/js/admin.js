@@ -474,18 +474,17 @@
         $('#hws-toggle-token').on('click', function() {
             var $i = $('#hws-github-token');
             var $btn = $(this);
-            
-            // If currently showing dots, fetch real token
+
+            // Security: Only show masked version (first 8 chars), never the full token
             if ($i.val() === '••••••••••••' || $i.attr('type') === 'password') {
                 $btn.prop('disabled', true).text('...');
-                
-                // Fetch the actual token from server
+
                 ajax('hws_get_token').done(function(r) {
                     if (r.success && r.data.token) {
                         $i.val(r.data.token).attr('type', 'text');
                         $btn.text('🙈');
                     } else {
-                        alert('Could not retrieve token');
+                        alert('No token configured');
                     }
                 }).fail(function() {
                     alert('Failed to fetch token');
@@ -519,6 +518,35 @@
                 showStatus($('#hws-token-status'), 'Save failed', 'error');
             }).always(function() { 
                 $btn.prop('disabled', false).text('Save Token'); 
+            });
+        });
+
+        $('#hws-test-token').on('click', function() {
+            console.log('[HWS] Test Credentials button clicked');
+            var $btn = $(this);
+            var $result = $('#hws-test-token-result');
+            $btn.prop('disabled', true).text('Testing...');
+            $result.show().css({ background: '#f0f0f1', border: '1px solid #c3c4c7', color: '#50575e' }).html('⏳ Testing GitHub credentials...');
+
+            ajax('hws_test_github_token').done(function(r) {
+                console.log('[HWS] Test Credentials response:', r);
+                if (r.success) {
+                    $result.css({ background: '#d4edda', border: '2px solid #00a32a', color: '#0a3622' }).html('✅ SUCCESS — Authenticated as: <strong>' + r.data.username + '</strong>' + (r.data.name ? ' (' + r.data.name + ')' : ''));
+                    showStatus($('#hws-token-status'), 'Saved (' + r.data.username + ')', 'success');
+                    appendLog('GitHub token test passed - authenticated as: ' + r.data.username + (r.data.name ? ' (' + r.data.name + ')' : ''));
+                } else {
+                    var msg = (r.data && r.data.message) ? r.data.message : 'Invalid token';
+                    $result.css({ background: '#f8d7da', border: '2px solid #d63638', color: '#58151c' }).html('❌ FAILED — ' + msg);
+                    showStatus($('#hws-token-status'), msg, 'error');
+                    appendLog('GitHub token test failed: ' + msg);
+                }
+            }).fail(function(xhr, status, error) {
+                console.error('[HWS] Test Credentials AJAX error:', status, error);
+                $result.css({ background: '#f8d7da', border: '2px solid #d63638', color: '#58151c' }).html('❌ REQUEST FAILED — ' + (error || 'Could not reach server'));
+                showStatus($('#hws-token-status'), 'Test request failed', 'error');
+                appendLog('GitHub token test request failed: ' + error);
+            }).always(function() {
+                $btn.prop('disabled', false).text('🔑 Test Credentials');
             });
         });
 
