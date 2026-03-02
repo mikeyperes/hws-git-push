@@ -20,6 +20,7 @@ class Ajax_Handlers {
         $actions = array(
             'hws_system_check',
             'hws_save_github_token',
+            'hws_test_github_token',
             'hws_get_token',
             'hws_fetch_github_repos',
             'hws_push_plugin',
@@ -93,15 +94,35 @@ class Ajax_Handlers {
         Helpers::ajax_success('Token saved', array('username' => $verify['username']));
     }
     
+    public static function handle_test_github_token() {
+        Helpers::verify_ajax_request();
+        $token = GitHub_API::get_token();
+
+        if (empty($token)) {
+            Helpers::ajax_error('No token configured. Please save a token first.');
+        }
+
+        $verify = GitHub_API::verify_token($token);
+        if (!$verify['valid']) {
+            Helpers::ajax_error('Token is invalid: ' . $verify['message']);
+        }
+
+        Helpers::ajax_success('Token is valid', array(
+            'username' => $verify['username'],
+            'name'     => $verify['name']
+        ));
+    }
+
     public static function handle_get_token() {
         Helpers::verify_ajax_request();
         $token = GitHub_API::get_token();
-        
+
         if (empty($token)) {
             Helpers::ajax_error('No token configured');
         }
-        
-        Helpers::ajax_success('Token retrieved', array('token' => $token));
+
+        // Security: Never return the raw token to the browser
+        Helpers::ajax_success('Token retrieved', array('token' => GitHub_API::get_masked_token()));
     }
     
     public static function handle_fetch_github_repos() {
